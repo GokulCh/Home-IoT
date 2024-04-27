@@ -6,7 +6,9 @@ import json
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1233482610890637492/UeVrwTyfGU4h9zCXSsWINutB0wvkAMGEyuuuIpJYYVjtjbraXixgIvAakmy0VqCBolIU"
-MQTT_WEBHOOK_URL = "https://discord.com/api/webhooks/1233517061129637908/wUtbwtUSwGIanNhT2lfvj9Z4iNKEOy42ruFMjGxP79nWBi1rUrWCWjVcl1XZn5sfrjJv"
+MQTT_DATA_WEBHOOL_URL = "https://discord.com/api/webhooks/1233573861493047406/ATt5Y2bpWeS72ivKQvolFKo72l-ZPaNk3SbtoTBtTroRL12h0ZqBB_nE9RJSl97MPOvY"
+MQTT_CONNECTED_WEBHOOK_URL = "https://discord.com/api/webhooks/1233520406594584640/lFJs1xKpUEzYv5hyiZYzmkMJ_J5vZN2QCEF0hx8g4OL0vOm7c4f0RLj6tE9utZz_RdGn"
+MQTT_DISCONNECTED_WEBHOOK_URL = "https://discord.com/api/webhooks/1233520625172348938/D8UY5h2OsrbkYYwtguz466RKbo9LSeq4UQDNgXFu0R_AMwbp82XmrXMaiqGjZwycO86a"
 
 def handle_error(func):
     """Decorator to handle exceptions and log them"""
@@ -19,11 +21,11 @@ def handle_error(func):
     return wrapper
 
 @handle_error
-def send_discord_message(title, message, url):
+def send_discord_message(title, message, url, color=0x99E550):
     embed = {
         "title": title,
         "description": message,
-        "color": 0x99E550
+        "color": color
     }
     payload = {
         "embeds": [embed]
@@ -32,7 +34,7 @@ def send_discord_message(title, message, url):
         "Content-Type": "application/json"
     }
     try:
-        response = requests.post(DISCORD_WEBHOOK_URL, data=json.dumps(payload), headers=headers)
+        response = requests.post(url, data=json.dumps(payload), headers=headers)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         logging.error(f"Error sending Discord message: {e}")

@@ -85,8 +85,7 @@ void connectMQTTServer() {
 
     if (mqttClient.connect(clientId.c_str())) {
       Serial.println("connected");
-      // Subscribe to topics here
-      // mqttClient.subscribe("rpi/xyz");
+      mqttClient.subscribe("esp32/sensor_check");
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
@@ -98,26 +97,21 @@ void connectMQTTServer() {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("] ");
 
-  String messageTemp;
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-    messageTemp += (char)payload[i];
-  }
-  Serial.println();
+    String messageTemp;
+    for (unsigned int i = 0; i < length; i++) {
+        Serial.print((char)payload[i]);
+        messageTemp += (char)payload[i];
+    }
+    Serial.println();
 
-  if (String(topic) == "rpi/broadcast" && messageTemp == "10") {
-    Serial.println("Action: blink LED");
-    blinkLED(1, 1250);
-  }
-
-  if (String(topic) == "rpi_client" && messageTemp == "ping") {
-    String pongTopic = "esp32/sensor_check/" + macAddress;
-    mqttClient.publish(pongTopic.c_str(), "pong");
-  }
+    if (String(topic) == "esp32/sensor_check") {
+        String pongTopic = "esp32/sensor_check/" + macAddress;
+        mqttClient.publish(pongTopic.c_str(), "pong");
+    }
 }
 
 void blinkLED(unsigned int times, unsigned int duration) {
@@ -145,5 +139,5 @@ void publishSensorData(int sensorState) {
 
   char buffer[256];
   size_t n = serializeJson(doc, buffer);
-  mqttClient.publish("esp32/sensor", buffer, n);
+  mqttClient.publish("esp32/sensor_data", buffer, n);
 }
