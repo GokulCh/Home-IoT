@@ -14,7 +14,7 @@ import os
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-MQTT_HOST = "172.20.10.2"
+MQTT_HOST = "10.42.0.1"
 MQTT_PORT = 1883
 
 TOPIC_CLIENT = "rpi_client"
@@ -32,6 +32,9 @@ def on_connect(client, userdata, flags, rc):
         logging.info("[on_connect] Connected to MQTT server")
         client.subscribe(TOPIC_SENSOR_DATA)
         client.subscribe(TOPIC_SENSOR_CHECK + "/#")
+        client.subscribe(TOPIC_SLEEP + "/#")
+
+        bot.send_discord_message("MQTT - RPI Connected", f"**RPI:** {RPI_MAC_ADDRESS}", bot.MQTT_CONNECTED_WEBHOOK_URL)
     else:
         logging.error(f"[on_connect] Failed to connect to MQTT server, return code: {rc}")
 
@@ -42,17 +45,17 @@ def on_disconnect(client, userdata, rc):
         logging.info("[on_disconnect] Disconnected from MQTT server")
     else:
         logging.error(f"[on_disconnect] Unexpected disconnection from MQTT server, return code: {rc}")
-
-
+        bot.send_discord_message("MQTT - RPI Disconnected", f"**RPI:** {RPI_MAC_ADDRESS}", bot.MQTT_DISCONNECTED_WEBHOOK_URL)
+    
 def on_message(client, userdata, msg):
     topic = msg.topic
     payload = msg.payload.decode('utf-8')
     logging.info(f"[on_message] [{topic}] Received: {payload}")
-
     if topic == TOPIC_SENSOR_DATA:
         try:
             json_object = json.loads(payload)
             config.add_data_json(json_object)
+            bot.send_discord_message(f"MQTT Sensor Data", payload, bot.MQTT_DATA_WEBHOOL_URL)
         except Exception as error:
             logging.error(f"[on_message] Error processing message: {error}")
 
@@ -61,6 +64,7 @@ def on_message(client, userdata, msg):
         if payload == "pong":
             try:
                 config.add_esp_rpi_json(mac_address, "On", "esp")
+                bot.send_discord_message("ESP32 - Status Check", f"The ESP32 {mac_address} is online", bot.MQTT_STATUS_CHECK_WEBHOOK_URL)
             except Exception as error:
                 logging.error(f"[on_message] Error processing message: {error}")
         else:
@@ -70,13 +74,16 @@ def on_message(client, userdata, msg):
         mac_address = topic.split("/")[2]
         if payload == "slept":
             try:
-                print(f"ESP32 device {mac_address} has gone to sleep.")
+                logging.info(f"ESP32 device {mac_address} has gone to sleep.")
+                bot.send_discord_message("ESP32 - Sleep Mode", f"The ESP32 {mac_address} is now asleep 💤", bot.MQTT_STATUS_CHECK_WEBHOOK_URL)
+
             except Exception as error:
                 logging.error(f"[on_message] Error processing message: {error}")
         else:
             logging.error(f"[on_message] Unexpected message on {topic}: {payload}")
     else:
         logging.error(f"[on_message] Unexpected topic: {topic}, payload: {payload}")
+        bot.send_discord_message(f"MQTT General Messages", payload, bot.MQTT_GENERAL_WEBHOOK_URL)
 
 
 @config.handle_error
@@ -106,20 +113,32 @@ def establish_connection():
 
 @config.handle_error
 def check_and_publish_sleep(client):
+    sleep_sent = False
+    
     while True:
         current_time = datetime.datetime.now().time()
+
         if current_time < datetime.time(8, 0) or current_time > datetime.time(20, 0):
-            client.publish(TOPIC_SLEEP, "sleep")
-            # Calculate seconds until 8 am
-            wake_up_time = datetime.datetime.combine(datetime.date.today(), datetime.time(8, 0))
-            if current_time > datetime.time(20, 0):
-                wake_up_time += datetime.timedelta(days=1)
-            sleep_duration = (wake_up_time - datetime.datetime.now()).total_seconds()
-            logging.info(f"Going to sleep for {sleep_duration} seconds.")
-            # time.sleep(sleep_duration)
+            if not sleep_sent:
+                wake_up_time = datetime.datetime.combine(datetime.date.today(), datetime.time(8, 0))
+                if current_time > datetime.time(20, 0):
+                    wake_up_time += datetime.timedelta(days=1)
+                sleep_duration = (wake_up_time - datetime.datetime.now()).total_seconds()
+                # Publish sleep duration as string
+                client.publish(TOPIC_SLEEP, str(int(sleep_duration)))
+                sleep_sent = True
+                logging.info(f"Going to sleep for {sleep_duration} seconds.")
+            current_datetime = datetime.datetime.now()
+            target_time = datetime.datetime.combine(current_datetime.date(), datetime.time(8, 0))
+            if current_datetime.time() > datetime.time(8, 0):
+                target_time += datetime.timedelta(days=1)
+            sleep_time = (target_time - current_datetime).total_seconds()
+            time.sleep(sleep_time)
+            sleep_sent = False
         else:
-            # Check every minute if not in sleep period
             time.sleep(60)
+
+
         
 @config.handle_error
 def check_alive_devices(client):
@@ -127,9 +146,12 @@ def check_alive_devices(client):
     esp_file_path = os.path.join(config_folder, "esp.json")
 
     while True:
-        client.publish(TOPIC_SENSOR_CHECK, "ping")
-        time.sleep(30)
         current_time = datetime.datetime.now()
+        next_hour = (current_time.replace(second=0, microsecond=0) + datetime.timedelta(hours=1)).replace(minute=0)
+        time_until_next_hour = (next_hour - current_time).total_seconds()
+        time.sleep(time_until_next_hour)
+
+        client.publish(TOPIC_SENSOR_CHECK, "ping")
 
         if os.path.exists(esp_file_path):
             with open(esp_file_path, "r") as file:
@@ -142,12 +164,13 @@ def check_alive_devices(client):
 
                         if (current_time - last_seen).total_seconds() >= 3600:
                             logging.warning(f"ESP32 device {mac_address} has not been seen for 1 hour or more.")
+                            bot.send_discord_message("ESP32 - Status Check", f"The ESP32 {mac_address} is offline", bot.MQTT_STATUS_CHECK_WEBHOOK_URL, 0xFF0000)
                             config.add_esp_rpi_json(mac_address, "Off", "esp")
                     except json.JSONDecodeError:
                         print(f"Skipping invalid JSON line: {line}")
         else:
             logging.warning(f"File '{esp_file_path}' does not exist.")
-        time.sleep(3600)  # Check every hour
+
 
 
 @config.handle_error
