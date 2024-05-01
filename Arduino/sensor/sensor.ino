@@ -4,9 +4,9 @@
 
 // Constants
 const int SENSOR_PIN = 5;
-const char* SSID = "Gokul Ch";
+const char* SSID = "rpi";
 const char* WIFI_PASSWORD = "somepassword";
-const char* MQTT_SERVER = "172.20.10.2";
+const char* MQTT_SERVER = "10.42.0.1";
 const String SENSOR_NAME = "house_1";
 const String SENSOR_TYPE = "door_1";
 const uint16_t MQTT_PORT = 1883;
@@ -52,7 +52,8 @@ void loop() {
 }
 
 void connectWiFi() {
-  WiFi.begin(SSID, WIFI_PASSWORD);
+  // WiFi.begin(SSID, WIFI_PASSWORD);
+  WiFi.begin(SSID);
   Serial.print("Connecting to WiFi ");
   Serial.println(SSID);
 
@@ -86,6 +87,7 @@ void connectMQTTServer() {
     if (mqttClient.connect(clientId.c_str())) {
       Serial.println("connected");
       mqttClient.subscribe("esp32/sensor_check");
+      mqttClient.subscribe("esp32/sleep");
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
@@ -111,6 +113,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (String(topic) == "esp32/sensor_check") {
         String pongTopic = "esp32/sensor_check/" + macAddress;
         mqttClient.publish(pongTopic.c_str(), "pong");
+    }
+
+    if (String(topic) == "esp32/sleep") {
+        String pongTopic = "esp32/sleep/" + macAddress;
+        mqttClient.publish(pongTopic.c_str(), "slept");
+
+        ESP.deepSleep(43200e6);
     }
 }
 
