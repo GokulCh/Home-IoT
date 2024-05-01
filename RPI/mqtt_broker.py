@@ -20,6 +20,7 @@ MQTT_PORT = 1883
 TOPIC_CLIENT = "rpi_client"
 TOPIC_SENSOR_DATA = "esp32/sensor_data"
 TOPIC_SENSOR_CHECK = "esp32/sensor_check"
+TOPIC_SLEEP = "esp32/sleep"
 
 RPI_MAC_ADDRESS = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0,2*6,2)])
 
@@ -51,8 +52,6 @@ def on_message(client, userdata, msg):
     if topic == TOPIC_SENSOR_DATA:
         try:
             json_object = json.loads(payload)
-            bot.send_discord_message("Sensor Data", f"**sensor_name**: {json_object["sensor_name"]}\n**sensor_type**: {json_object["sensor_type"]}\n**mac_address**: {json_object["mac_address"]}\n**event**: {json_object["event"]}\n**timestamp**: {json_object["timestamp"]}", bot.MQTT_DATA_WEBHOOL_URL)
-
             config.add_data_json(json_object)
         except Exception as error:
             logging.error(f"[on_message] Error processing message: {error}")
@@ -62,6 +61,16 @@ def on_message(client, userdata, msg):
         if payload == "pong":
             try:
                 config.add_esp_rpi_json(mac_address, "On", "esp")
+            except Exception as error:
+                logging.error(f"[on_message] Error processing message: {error}")
+        else:
+            logging.error(f"[on_message] Unexpected message on {topic}: {payload}")
+    
+    elif topic.startswith(TOPIC_SLEEP + "/"):
+        mac_address = topic.split("/")[2]
+        if payload == "slept":
+            try:
+                print(f"ESP32 device {mac_address} has gone to sleep.")
             except Exception as error:
                 logging.error(f"[on_message] Error processing message: {error}")
         else:
@@ -95,7 +104,23 @@ def establish_connection():
             time.sleep(60)
     return client
 
-
+@config.handle_error
+def check_and_publish_sleep(client):
+    while True:
+        current_time = datetime.datetime.now().time()
+        if current_time < datetime.time(8, 0) or current_time > datetime.time(20, 0):
+            client.publish(TOPIC_SLEEP, "sleep")
+            # Calculate seconds until 8 am
+            wake_up_time = datetime.datetime.combine(datetime.date.today(), datetime.time(8, 0))
+            if current_time > datetime.time(20, 0):
+                wake_up_time += datetime.timedelta(days=1)
+            sleep_duration = (wake_up_time - datetime.datetime.now()).total_seconds()
+            logging.info(f"Going to sleep for {sleep_duration} seconds.")
+            # time.sleep(sleep_duration)
+        else:
+            # Check every minute if not in sleep period
+            time.sleep(60)
+        
 @config.handle_error
 def check_alive_devices(client):
     config_folder = "Config"
@@ -131,6 +156,9 @@ def start_threads():
 
     thread_check = threading.Thread(target=check_alive_devices, args=(client,))
     thread_check.start()
+    
+    thread_sleep = threading.Thread(target=check_and_publish_sleep, args=(client,))
+    thread_sleep.start()
 
 
 @config.handle_error
