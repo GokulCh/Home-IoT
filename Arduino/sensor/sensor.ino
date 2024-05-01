@@ -118,8 +118,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (String(topic) == "esp32/sleep") {
         String pongTopic = "esp32/sleep/" + macAddress;
         mqttClient.publish(pongTopic.c_str(), "slept");
-
-        ESP.deepSleep(43200e6);
+        Serial.println("Sleep for: " + messageTemp);
+        
+        long sleepDuration = messageTemp.toInt();
+        ESP.deepSleep(sleepDuration * 1e6);
     }
 }
 
@@ -148,5 +150,6 @@ void publishSensorData(int sensorState) {
 
   char buffer[256];
   size_t n = serializeJson(doc, buffer);
-  mqttClient.publish("esp32/sensor_data", buffer, n);
+  String dataTopic = "esp32/sensor_data/" + macAddress;
+  mqttClient.publish(dataTopic.c_str(), buffer, n);
 }
