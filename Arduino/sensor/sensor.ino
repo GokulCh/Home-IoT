@@ -58,7 +58,7 @@ void loop() {
 
 void connectWiFi() {
   WiFi.disconnect();
-  WiFi.begin(SSID);
+  WiFi.begin(SSID, WIFI_PASSWORD);
   Serial.print(F("Connecting to WiFi "));
   Serial.println(SSID);
 
@@ -97,7 +97,7 @@ void connectMQTTServer() {
       Serial.print(F("failed, rc="));
       Serial.print(mqttClient.state());
       Serial.println(F(" trying again in 5 seconds"));
-      blinkLED(1, 200);
+      blinkLED(3, 200);
       delay(5000);
     }
   }
