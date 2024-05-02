@@ -58,7 +58,7 @@ void loop() {
 
 void connectWiFi() {
   WiFi.disconnect();
-  WiFi.begin(SSID, WIFI_PASSWORD);
+  WiFi.begin(SSID);
   Serial.print(F("Connecting to WiFi "));
   Serial.println(SSID);
 
