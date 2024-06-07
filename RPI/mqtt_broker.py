@@ -82,7 +82,6 @@ def handle_sensor_data(topic, payload):
         triggered_sensors[sensor_id] = datetime.datetime.now()
 
         if len(triggered_sensors) == 2:
-            print("Triggered DWAIDbbd")
             sensor_ids = sorted(triggered_sensors.keys())
             first_sensor_id, second_sensor_id = sensor_ids
             first_trigger_time = triggered_sensors[first_sensor_id]
@@ -97,9 +96,9 @@ def handle_sensor_data(topic, payload):
             config.add_data_json(json_object)
             bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``\n**Direction:** {direction}")
             triggered_sensors.clear()
-        else:
-            config.add_data_json(json_object)
-            bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``")
+    else:
+        config.add_data_json(json_object)
+        bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``")
 
 def handle_sensor_check(topic, payload):
     mac_address = topic.split("/")[2]
