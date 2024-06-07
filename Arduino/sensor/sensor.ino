@@ -3,10 +3,10 @@
 #include <ArduinoJson.h>
 
 // Constants
-const char* SSID = "rpi";
-const char* WIFI_PASSWORD = "somepassword";
-const char* MQTT_SERVER = "10.42.0.1";
-const String SENSOR_NAME = F("house_1");
+const char* SSID = "homeiot";
+const char* WIFI_PASSWORD = "HomeIOT24";
+const char* MQTT_SERVER = "172.18.220.138";
+const String SENSOR_NAME = F("house_1_bedroom");
 const String SENSOR_TYPE = F("door_1");
 const uint16_t MQTT_PORT = 1883;
 const int SENSOR_PIN = 5;
@@ -52,8 +52,6 @@ void loop() {
     publishSensorData(sensorState);
     previousSensorState = sensorState;
   }
-
-  delay(30000);
 }
 
 void connectWiFi() {
