@@ -1,22 +1,20 @@
-import threading
+import os
 import time
 import json
-import warnings
-import datetime
+import uuid
 import platform
 import logging
-import uuid
-import config
+import datetime
+import warnings
+import threading
 import paho.mqtt.client as mqtt
+
 import bot
-import os
+import config
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
+# Constants
 MQTT_HOST = "10.42.0.1"
 MQTT_PORT = 1883
-
 TOPICS = {
     "CLIENT": "rpi_client",
     "SENSOR_DATA": "esp32/sensor_data",
@@ -24,21 +22,22 @@ TOPICS = {
     "SLEEP": "esp32/sleep"
 }
 
-RPI_MAC_ADDRESS = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0,2*6,2)])
+RPI_MAC_ADDRESS = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2 * 6, 2)])
 
+# Logging setup
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Callback functions
 @config.handle_error
 def on_connect(client, userdata, flags, rc):
     """Callback for when the client connects to the server."""
     if rc == 0:
         logging.info("[on_connect] Connected to MQTT server")
-        for topic in [TOPICS["SENSOR_DATA"] + "/#", TOPICS["SENSOR_CHECK"] + "/#", TOPICS["SLEEP"] + "/#"]:
+        for topic in [f"{TOPICS['SENSOR_DATA']}/#", f"{TOPICS['SENSOR_CHECK']}/#", f"{TOPICS['SLEEP']}/#"]:
             client.subscribe(topic)
-        
         bot.send_discord_message("mqtt_rpi_connection", f"**Address:**\n``{RPI_MAC_ADDRESS}``")
     else:
         logging.error(f"[on_connect] Failed to connect to MQTT server, return code: {rc}")
-
 
 @config.handle_error
 def on_disconnect(client, userdata, rc):
@@ -48,60 +47,57 @@ def on_disconnect(client, userdata, rc):
     else:
         logging.error(f"[on_disconnect] Unexpected disconnection from MQTT server, return code: {rc}")
     bot.send_discord_message("mqtt_rpi_connection", f"**Address:**\n``{RPI_MAC_ADDRESS}``")
-    
 
+@config.handle_error
 def on_message(client, userdata, msg):
+    """Callback for when a message is received from the server."""
     topic = msg.topic
     payload = msg.payload.decode('utf-8')
     logging.info(f"[on_message] [{topic}] Received: {payload}")
-    
-    if topic.startswith(TOPICS["SENSOR_DATA"] + "/") :
-        mac_address = topic.split("/")[2]
-        try:
-            json_object = json.loads(payload)
-            config.add_data_json(json_object)
 
-            bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``")
-        except Exception as error:
-            logging.error(f"[on_message] Error processing message: {error}")
+    try:
+        if topic.startswith(TOPICS["SENSOR_DATA"] + "/"):
+            handle_sensor_data(topic, payload)
+        elif topic.startswith(TOPICS["SENSOR_CHECK"] + "/"):
+            handle_sensor_check(topic, payload)
+        elif topic.startswith(TOPICS["SLEEP"] + "/"):
+            handle_sleep(topic, payload)
+        else:
+            raise ValueError(f"Unexpected topic: {topic}")
+    except Exception as error:
+        logging.error(f"[on_message] Error processing message: {error}")
 
-    elif topic.startswith(TOPICS["SENSOR_CHECK"] + "/"):
-        mac_address = topic.split("/")[2]
-        if payload == "pong":
-            try:
-                config.add_esp_rpi_json(mac_address, "On", "esp")
-                bot.send_discord_message("esp32_connection", f"**ESP32:**\n``{mac_address}``\n**Status:**\n``Online``")
-            except Exception as error:
-                logging.error(f"[on_message] Error processing message: {error}")
-        else:
-            logging.error(f"[on_message] Unexpected message on {topic}: {payload}")
-    
-    elif topic.startswith(TOPICS["SLEEP"] + "/"):
-        mac_address = topic.split("/")[2]
-        if payload == "slept":
-            try:
-                logging.info(f"ESP32 device {mac_address} has gone to sleep.")
-                bot.send_discord_message("esp32_connection", f"**ESP32:**\n``{mac_address}``\n**Status:**\n``Sleep``")
-            except Exception as error:
-                logging.error(f"[on_message] Error processing message: {error}")
-        else:
-            logging.error(f"[on_message] Unexpected message on {topic}: {payload}")
+def handle_sensor_data(topic, payload):
+    mac_address = topic.split("/")[2]
+    json_object = json.loads(payload)
+    config.add_data_json(json_object)
+    bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``")
+
+def handle_sensor_check(topic, payload):
+    mac_address = topic.split("/")[2]
+    if payload == "pong":
+        config.add_esp_rpi_json(mac_address, "On", "esp")
+        bot.send_discord_message("esp32_connection", f"**ESP32:**\n``{mac_address}``\n**Status:**\n``Online``")
     else:
-        logging.error(f"[on_message] Unexpected topic: {topic}, payload: {payload}")
-        bot.send_discord_message("mqtt_messages_received", f"**Received:**\n``{payload}``")
+        logging.error(f"[on_message] Unexpected message on {topic}: {payload}")
 
+def handle_sleep(topic, payload):
+    mac_address = topic.split("/")[2]
+    if payload == "slept":
+        logging.info(f"ESP32 device {mac_address} has gone to sleep.")
+        bot.send_discord_message("esp32_connection", f"**ESP32:**\n``{mac_address}``\n**Status:**\n``Sleep``")
+    else:
+        logging.error(f"[on_message] Unexpected message on {topic}: {payload}")
 
 @config.handle_error
 def establish_connection():
+    """Establishes the MQTT connection."""
     config.add_esp_rpi_json(RPI_MAC_ADDRESS, "On", "rpi")
 
     while True:
         try:
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            if platform.system() == "Windows" or platform.system() == "Linux":
-                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "rpi_client")
-            if platform.system() == "Darwin":
-                client = mqtt.Client("rpi_client")
+            client = mqtt.Client("rpi_client")
             warnings.filterwarnings("default", category=DeprecationWarning)
 
             client.on_connect = on_connect
@@ -116,11 +112,11 @@ def establish_connection():
             time.sleep(60)
     return client
 
-
 @config.handle_error
 def check_and_publish_sleep(client):
+    """Checks time and publishes sleep duration to MQTT topic."""
     sleep_sent = False
-    
+
     while True:
         current_time = datetime.datetime.now().time()
 
@@ -130,24 +126,20 @@ def check_and_publish_sleep(client):
                 if current_time > datetime.time(20, 0):
                     wake_up_time += datetime.timedelta(days=1)
                 sleep_duration = (wake_up_time - datetime.datetime.now()).total_seconds()
-                # Publish sleep duration as string
                 client.publish(TOPICS["SLEEP"], str(int(sleep_duration)))
                 sleep_sent = True
                 logging.info(f"Going to sleep for {sleep_duration} seconds.")
-            current_datetime = datetime.datetime.now()
-            target_time = datetime.datetime.combine(current_datetime.date(), datetime.time(8, 0))
-            if current_datetime.time() > datetime.time(8, 0):
-                target_time += datetime.timedelta(days=1)
-            sleep_time = (target_time - current_datetime).total_seconds()
+            sleep_time = (datetime.datetime.combine(datetime.date.today(), datetime.time(8, 0)) - datetime.datetime.now()).total_seconds()
+            if sleep_time < 0:
+                sleep_time += 86400  # Add a day in seconds if already past 8 AM
             time.sleep(sleep_time)
             sleep_sent = False
         else:
             time.sleep(60)
 
-
-        
 @config.handle_error
 def check_alive_devices(client):
+    """Checks the alive status of devices and publishes a ping message."""
     config_folder = "Config"
     esp_file_path = os.path.join(config_folder, "esp.json")
 
@@ -165,35 +157,29 @@ def check_alive_devices(client):
                     try:
                         entry = json.loads(line)
                         mac_address = entry["mac_address"]
-                        last_seen_str = entry["time"]
-                        last_seen = datetime.datetime.fromisoformat(last_seen_str)
+                        last_seen = datetime.datetime.fromisoformat(entry["time"])
 
                         if (current_time - last_seen).total_seconds() >= 3600:
                             logging.warning(f"ESP32 device {mac_address} has not been seen for 1 hour or more.")
                             bot.send_discord_message("esp32_connection", f"**ESP32:**\n``{mac_address}``\n**Status:** Offline")
                             config.add_esp_rpi_json(mac_address, "Off", "esp")
                     except json.JSONDecodeError:
-                        print(f"Skipping invalid JSON line: {line}")
+                        logging.error(f"Skipping invalid JSON line: {line}")
         else:
             logging.warning(f"File '{esp_file_path}' does not exist.")
 
-
-
 @config.handle_error
 def start_threads():
+    """Starts the necessary threads for checking device status and publishing sleep data."""
     client = establish_connection()
 
-    thread_check = threading.Thread(target=check_alive_devices, args=(client,))
-    thread_check.start()
-    
-    thread_sleep = threading.Thread(target=check_and_publish_sleep, args=(client,))
-    thread_sleep.start()
-
+    threading.Thread(target=check_alive_devices, args=(client,)).start()
+    threading.Thread(target=check_and_publish_sleep, args=(client,)).start()
 
 @config.handle_error
 def run():
+    """Main entry point for the script."""
     start_threads()
-
 
 if __name__ == "__main__":
     run()
