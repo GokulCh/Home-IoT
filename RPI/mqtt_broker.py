@@ -24,6 +24,9 @@ TOPICS = {
 
 RPI_MAC_ADDRESS = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2 * 6, 2)])
 
+# Global variables
+triggered_sensors = {}
+
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -67,6 +70,7 @@ def on_message(client, userdata, msg):
             raise ValueError(f"Unexpected topic: {topic}")
     except Exception as error:
         logging.error(f"[on_message] Error processing message: {error}")
+
 
 def handle_sensor_data(topic, payload):
     mac_address = topic.split("/")[2]
