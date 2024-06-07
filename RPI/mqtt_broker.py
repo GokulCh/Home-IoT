@@ -75,7 +75,7 @@ def handle_sensor_data(topic, payload):
     sensor_id = json_object["sensor_id"]
 
     if sensor_type == "pir":
-        triggered_sensors[sensor_id] = datetime.now()
+        triggered_sensors[sensor_id] = datetime.datetime.now()
 
         if len(triggered_sensors) == 2:
             sensor_ids = sorted(triggered_sensors.keys())
