@@ -13,7 +13,7 @@ import bot
 import config
 
 # Constants
-MQTT_HOST = "10.42.0.1"
+MQTT_HOST = "172.18.220.138"
 MQTT_PORT = 1883
 TOPICS = {
     "CLIENT": "rpi_client",
