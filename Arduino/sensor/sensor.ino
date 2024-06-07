@@ -34,11 +34,13 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("ESP32_Sensor");
-  macAddress = WiFi.macAddress();
 
   connectWiFi();
+
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
+
+  macAddress = WiFi.macAddress();
 }
 
 void loop() {
