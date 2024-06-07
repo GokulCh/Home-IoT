@@ -6,8 +6,10 @@
 const char* SSID = "homeiot";
 const char* WIFI_PASSWORD = "HomeIOT24";
 const char* MQTT_SERVER = "172.18.220.138";
-const String SENSOR_NAME = F("house_1_bedroom");
-const String SENSOR_TYPE = F("door_1");
+const String SENSOR_NAME = F("house_1");
+const String SENSOR_TYPE = F("door");
+const String SENSOR_LOC = F("front_door");
+const int SENSOR_ID = 1;
 const uint16_t MQTT_PORT = 1883;
 const int SENSOR_PIN = 5;
 const int LED_PIN = 2;
@@ -138,9 +140,11 @@ void blinkLED(uint8_t times, uint16_t duration) {
 
 void publishSensorData(int sensorState) {
   StaticJsonDocument<256> doc;
+  doc["mac_address"] = macAddress;
   doc["sensor_name"] = SENSOR_NAME;
   doc["sensor_type"] = SENSOR_TYPE;
-  doc["mac_address"] = macAddress;
+  doc["sensor_loc"] = SENSOR_LOC;
+  doc["sensor_id"] = SENSOR_ID;
 
   if (sensorState == LOW) {
     Serial.println(F("Sensor triggered!"));

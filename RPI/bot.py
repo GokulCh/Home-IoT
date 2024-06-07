@@ -24,6 +24,7 @@ webhook_urls = {
     "esp32_messages_sent": ["ESP32 | Messages Sent", "https://discord.com/api/webhooks/1235232509457858601/1hrChlxW_BFwBnqijcpvuGBLahU35v0KzgWZnBBCSdmSS5o4_jI_uTt53YbjX5YZiKsb"],
     "esp32_messages_received": ["ESP32 | Messages Received", "https://discord.com/api/webhooks/1235232594157768808/om9Tr8aID9cTbIfWNkrBv9hMiWBOEjvmxCiYGunm8zAztwzufqm6tzs4wLWsIa8xqQch"],
     "esp32_connection": ["ESP32 | Connection", "https://discord.com/api/webhooks/1233517061129637908/wUtbwtUSwGIanNhT2lfvj9Z4iNKEOy42ruFMjGxP79nWBi1rUrWCWjVcl1XZn5sfrjJv"],
+    "esp32_overview": ["ESP32 | Overview", "https://discord.com/api/webhooks/1238625610302230569/7GIkCHCkuPNJs23i1OjrMHWDSYNfLfq0Or_ohJxVXQvcXCrb_23NsxTxv9HpFyHSIR3P"],
 }
 
 def handle_error(func):

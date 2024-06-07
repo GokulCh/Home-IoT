@@ -19,7 +19,7 @@ TOPICS = {
     "CLIENT": "rpi_client",
     "SENSOR_DATA": "esp32/sensor_data",
     "SENSOR_CHECK": "esp32/sensor_check",
-    "SLEEP": "esp32/sleep"
+    # "SLEEP": "esp32/sleep"
 }
 
 RPI_MAC_ADDRESS = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2 * 6, 2)])
@@ -33,7 +33,8 @@ def on_connect(client, userdata, flags, rc):
     """Callback for when the client connects to the server."""
     if rc == 0:
         logging.info("[on_connect] Connected to MQTT server")
-        for topic in [f"{TOPICS['SENSOR_DATA']}/#", f"{TOPICS['SENSOR_CHECK']}/#", f"{TOPICS['SLEEP']}/#"]:
+        # for topic in [f"{TOPICS['SENSOR_DATA']}/#", f"{TOPICS['SENSOR_CHECK']}/#", f"{TOPICS['SLEEP']}/#"]:
+        for topic in [f"{TOPICS['SENSOR_DATA']}/#", f"{TOPICS['SENSOR_CHECK']}/#"]:
             client.subscribe(topic)
         bot.send_discord_message("mqtt_rpi_connection", f"**Address:**\n``{RPI_MAC_ADDRESS}``")
     else:
@@ -60,8 +61,8 @@ def on_message(client, userdata, msg):
             handle_sensor_data(topic, payload)
         elif topic.startswith(TOPICS["SENSOR_CHECK"] + "/"):
             handle_sensor_check(topic, payload)
-        elif topic.startswith(TOPICS["SLEEP"] + "/"):
-            handle_sleep(topic, payload)
+        # elif topic.startswith(TOPICS["SLEEP"] + "/"):
+            # handle_sleep(topic, payload)
         else:
             raise ValueError(f"Unexpected topic: {topic}")
     except Exception as error:
@@ -70,8 +71,30 @@ def on_message(client, userdata, msg):
 def handle_sensor_data(topic, payload):
     mac_address = topic.split("/")[2]
     json_object = json.loads(payload)
-    config.add_data_json(json_object)
-    bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``")
+    sensor_type = json_object["sensor_type"]
+    sensor_id = json_object["sensor_id"]
+
+    if sensor_type == "pir":
+        triggered_sensors[sensor_id] = datetime.now()
+
+        if len(triggered_sensors) == 2:
+            sensor_ids = sorted(triggered_sensors.keys())
+            first_sensor_id, second_sensor_id = sensor_ids
+            first_trigger_time = triggered_sensors[first_sensor_id]
+            second_trigger_time = triggered_sensors[second_sensor_id]
+
+            if first_sensor_id == 1 and first_trigger_time < second_trigger_time:
+                direction = "Enter"
+            else:
+                direction = "Exit"
+                
+            json_object["direction"] = direction
+            config.add_data_json(json_object)
+            bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``\n**Direction:** {direction}")
+            triggered_sensors.clear()
+        else:
+            config.add_data_json(json_object)
+            bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``")
 
 def handle_sensor_check(topic, payload):
     mac_address = topic.split("/")[2]
@@ -97,7 +120,10 @@ def establish_connection():
     while True:
         try:
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            client = mqtt.Client("rpi_client")
+            if platform.system() == "Windows" or platform.system() == "Linux":
+                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "rpi_client")
+            if platform.system() == "Darwin":
+                client = mqtt.Client("rpi_client")
             warnings.filterwarnings("default", category=DeprecationWarning)
 
             client.on_connect = on_connect
@@ -174,7 +200,7 @@ def start_threads():
     client = establish_connection()
 
     threading.Thread(target=check_alive_devices, args=(client,)).start()
-    threading.Thread(target=check_and_publish_sleep, args=(client,)).start()
+    # threading.Thread(target=check_and_publish_sleep, args=(client,)).start()
 
 @config.handle_error
 def run():
