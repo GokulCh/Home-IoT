@@ -81,7 +81,7 @@ def handle_sensor_data(topic, payload):
     if sensor_type == "pir":
         triggered_sensors[sensor_id] = datetime.datetime.now()
 
-        console.log(triggered_sensors)
+        print(triggered_sensors)
         if len(triggered_sensors) == 2:
             sensor_ids = sorted(triggered_sensors.keys())
             first_sensor_id, second_sensor_id = sensor_ids
