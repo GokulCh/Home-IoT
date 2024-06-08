@@ -7,9 +7,9 @@ const char* SSID = "homeiot";
 const char* WIFI_PASSWORD = "HomeIOT24";
 const char* MQTT_SERVER = "172.18.220.138";
 const String SENSOR_NAME = F("house_1");
-const String SENSOR_TYPE = F("door");
+const String SENSOR_TYPE = F("pir");
 const String SENSOR_LOC = F("front_door");
-const int SENSOR_ID = 1;
+const int SENSOR_ID = 4;
 const uint16_t MQTT_PORT = 1883;
 const int SENSOR_PIN = 5;
 const int LED_PIN = 2;
@@ -32,6 +32,10 @@ void setup() {
   pinMode(SENSOR_PIN, INPUT_PULLUP);
   pinMode(LED_PIN, OUTPUT);
 
+  if (SENSOR_TYPE.equals("pir")){
+    pinMode(23, OUTPUT);
+    digitalWrite(23, LOW);
+  }
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("ESP32_Sensor");
 
