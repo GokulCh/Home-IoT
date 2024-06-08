@@ -87,15 +87,18 @@ def handle_sensor_data(topic, payload):
             first_trigger_time = triggered_sensors[first_sensor_id]
             second_trigger_time = triggered_sensors[second_sensor_id]
 
-            if first_sensor_id == 1 and first_trigger_time < second_trigger_time:
+            if first_sensor_id % 2 == 1 and second_sensor_id == first_sensor_id + 1 and first_trigger_time < second_trigger_time:
                 direction = "Enter"
-            else:
+            elif first_sensor_id % 2 == 0 and second_sensor_id == first_sensor_id - 1 and first_trigger_time > second_trigger_time:
                 direction = "Exit"
+            else:
+                return
                 
             json_object["direction"] = direction
             config.add_data_json(json_object)
             bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``\n**Direction:** {direction}")
-            triggered_sensors.clear()
+            del triggered_sensors[first_sensor_id]
+            del triggered_sensors[second_sensor_id]
     else:
         config.add_data_json(json_object)
         bot.send_discord_message("mqtt_data_received", f"**ESP32:**\n``{mac_address}``\n**Received:**\n``{payload}``")
