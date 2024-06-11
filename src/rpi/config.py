@@ -7,7 +7,6 @@ from functools import wraps
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-
 def handle_error(func):
     """Decorator to handle exceptions and log them"""
 
@@ -20,11 +19,10 @@ def handle_error(func):
 
     return wrapper
 
-
 @handle_error
 def create_empty_json_files():
-    "Create empty JSON files for RPI, ESP, and data"
-    config_folder = "Config"
+    """Create empty JSON files for RPI, ESP, and data"""
+    config_folder = "config"
     if not os.path.exists(config_folder):
         os.makedirs(config_folder)
 
@@ -35,11 +33,10 @@ def create_empty_json_files():
             with open(file_path, "w") as file:
                 file.write("\n")
 
-
 @handle_error
 def add_data_json(data):
     """Add data to a JSON file"""
-    config_folder = "Config"
+    config_folder = "config"
     if not os.path.exists(config_folder):
         os.makedirs(config_folder)
 
@@ -52,11 +49,10 @@ def add_data_json(data):
         json.dump(data, file)
         file.write("\n")
 
-
 @handle_error
 def add_esp_rpi_json(mac_address, status, filename):
     """Add data to a JSON file"""
-    config_folder = "Config"
+    config_folder = "config"
     if not os.path.exists(config_folder):
         os.makedirs(config_folder)
     file_path = os.path.join(config_folder, filename + ".json")
@@ -90,11 +86,9 @@ def add_esp_rpi_json(mac_address, status, filename):
         for entry in existing_data:
             file.write(json.dumps(entry) + "\n")
 
-
 @handle_error
 def run():
     create_empty_json_files()
-
 
 if __name__ == "__main__":
     run()

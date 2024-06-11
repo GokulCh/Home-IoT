@@ -3,13 +3,13 @@
 #include <ArduinoJson.h>
 
 // Constants
-const char* SSID = "homeiot";
-const char* WIFI_PASSWORD = "HomeIOT24";
-const char* MQTT_SERVER = "172.18.220.138";
+const char* SSID = "Verizon-RC400L-FA";
+const char* WIFI_PASSWORD = "12ff7959";
+const char* MQTT_SERVER = "192.168.1.117";
 const String SENSOR_NAME = F("house_1");
-const String SENSOR_TYPE = F("pir");
+const String SENSOR_TYPE = F("door");
 const String SENSOR_LOC = F("front_door");
-const int SENSOR_ID = 4;
+const int SENSOR_ID = 1;
 const uint16_t MQTT_PORT = 1883;
 const int SENSOR_PIN = 5;
 const int LED_PIN = 2;

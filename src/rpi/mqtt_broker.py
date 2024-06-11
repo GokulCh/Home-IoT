@@ -13,7 +13,7 @@ import bot
 import config
 
 # Constants
-MQTT_HOST = "172.18.220.138"
+MQTT_HOST = "172.18.100.121"
 MQTT_PORT = 1883
 TOPICS = {
     "CLIENT": "rpi_client",
@@ -78,10 +78,10 @@ def handle_sensor_data(topic, payload):
     sensor_type = json_object["sensor_type"]
     sensor_id = json_object["sensor_id"]
 
-    if sensor_type == "pir":
+    if sensor_type == "pir" and json_object["event"] == "released"  :
         triggered_sensors[sensor_id] = datetime.datetime.now()
 
-        if len(triggered_sensors) == 2:
+        if len(triggered_sensors) >= 2:
             sensor_ids = sorted(triggered_sensors.keys())
             first_sensor_id, second_sensor_id = sensor_ids
             first_trigger_time = triggered_sensors[first_sensor_id]
